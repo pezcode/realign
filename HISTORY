@@ -1,0 +1,65 @@
+1.6:
+- "RealignPEEx" API added:
+    * option: new file alignment (200h, 400h, 800h, 1000h)
+    * option: align section rawsizes to new file alignment
+    * option: strip empty sections from header
+- "WipeData" API added:
+    * wipe section containing data directory
+    * optionally zerofill data before deleting section (if present)
+- "FixChecksum" API added
+- "ReBasePEImageEx" API added:
+    * supports both PE and PE32+ files, the old one doesn't allow a 64bit base
+- "MapFile" API added
+- "UnmapFile" API added
+- RealignPE:
+    * improved handling of sections with a rawoffset or rawsize of 0
+    * zerofill unused space in header and sections
+- WipeReloc:
+    * fixed handling for sections not sorted by their rawoffset
+    * copy entire section header (characteristics!)
+    * sets IMAGE_FILE_RELOCS_STRIPPED flag in the PE header
+- ValidatePE:
+    * proper calculation of SizeOfHeaders
+    * improved alignment of raw and virtual offsets + sizes
+- support for x64 PE files (PE32+)
+- handles RVAs inside the PE header
+- support for up to 96 sections
+- code can be compiled to an x64 dll/lib
+- removed all references to dbghlp.dll
+- functions are thread safe
+- lots of minor bug fixes
+
+----8<----8<----8<-- (begin of fork) --8<----8<----8<----8<----
+
+1.5:
+- "ReBasePEImage" API added
+
+1.4d:
+- offset to section table is now calculated dynamically
+
+1.4c:
+- "ValidatePE" API added
+
+1.4b:
+- solved prob with binded files
+- new realign mode: nice
+
+1.4:
+- WipeReloc API added
+
+1.3a:
+- bugs I caused while fixing the Watcom prob were fixed :)
+- fixed a bug that let a lot of files don't work on NT after realigning them
+  in the normal mode (the PE Signature can't be anywhere in the Header)
+
+1.2:
+- support for files being compiled with Watcom C/C++ added
+- TruncateFile API added
+
+1.11:
+- SEH added
+- Realign API returns error codes
+
+1.1:
+- hardcore realign mode added
+- bugfixes

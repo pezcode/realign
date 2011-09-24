@@ -1,4 +1,4 @@
-//Microsoft Developer Studio generated resource script.
+// Microsoft Visual C++ generated resource script.
 //
 #include "resource.h"
 
@@ -13,49 +13,22 @@
 #undef APSTUDIO_READONLY_SYMBOLS
 
 /////////////////////////////////////////////////////////////////////////////
-// Deutsch (Deutschland) resources
+// Neutral resources
 
-#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_DEU)
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_NEU)
 #ifdef _WIN32
-LANGUAGE LANG_GERMAN, SUBLANG_GERMAN
+LANGUAGE LANG_NEUTRAL, SUBLANG_NEUTRAL
 #pragma code_page(1252)
 #endif //_WIN32
 
-#ifdef APSTUDIO_INVOKED
-/////////////////////////////////////////////////////////////////////////////
-//
-// TEXTINCLUDE
-//
-
-1 TEXTINCLUDE DISCARDABLE 
-BEGIN
-    "resource.h\0"
-END
-
-2 TEXTINCLUDE DISCARDABLE 
-BEGIN
-    "#include ""afxres.h""\r\n"
-    "\0"
-END
-
-3 TEXTINCLUDE DISCARDABLE 
-BEGIN
-    "\r\n"
-    "\0"
-END
-
-#endif    // APSTUDIO_INVOKED
-
-
-#ifndef _MAC
 /////////////////////////////////////////////////////////////////////////////
 //
 // Version
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,0,0,0
- PRODUCTVERSION 1,0,0,0
+ FILEVERSION 1,6,0,0
+ PRODUCTVERSION 1,6,0,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x29L
@@ -70,18 +43,14 @@ BEGIN
     BEGIN
         BLOCK "000004b0"
         BEGIN
-            VALUE "Comments", "\0"
-            VALUE "CompanyName", "yoda\0"
-            VALUE "FileDescription", "PE image optimization and reconstruction\0"
-            VALUE "FileVersion", "1.5\0"
-            VALUE "InternalName", "\0"
-            VALUE "LegalCopyright", "Copyright © 2002\0"
-            VALUE "LegalTrademarks", "\0"
-            VALUE "OriginalFilename", "realign.dll\0"
-            VALUE "PrivateBuild", "\0"
-            VALUE "ProductName", "realign dll\0"
-            VALUE "ProductVersion", "1.5\0"
-            VALUE "SpecialBuild", "\0"
+            VALUE "CompanyName", "yoda/Killboy"
+            VALUE "FileDescription", "PE image optimization and reconstruction"
+            VALUE "FileVersion", "1.6"
+            VALUE "InternalName", "Realign DLL"
+            VALUE "LegalCopyright", "Copyright © 2002-2009"
+            VALUE "OriginalFilename", "realign.dll"
+            VALUE "ProductName", "Realign DLL"
+            VALUE "ProductVersion", "1.6"
         END
     END
     BLOCK "VarFileInfo"
@@ -90,16 +59,33 @@ BEGIN
     END
 END
 
-#endif    // !_MAC
 
-
+#ifdef APSTUDIO_INVOKED
 /////////////////////////////////////////////////////////////////////////////
 //
-// BINARYDATA
+// TEXTINCLUDE
 //
 
-NICE_STUB               BINARYDATA DISCARDABLE  "NICE-STUB.BIN"
-#endif    // Deutsch (Deutschland) resources
+1 TEXTINCLUDE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE 
+BEGIN
+    "#include ""afxres.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE 
+BEGIN
+    "\r\n"
+    "\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+#endif    // Neutral resources
 /////////////////////////////////////////////////////////////////////////////
 
 

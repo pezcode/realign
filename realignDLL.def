@@ -1,7 +1,13 @@
 LIBRARY   realign
 EXPORTS
-	RealignPE
+	MapFile
+	UnmapFile
 	TruncateFile
-	WipeReloc
-	ValidatePE
+	RealignPE
+	RealignPEEx
 	ReBasePEImage
+	ReBasePEImageEx
+	WipeReloc
+	WipeData
+	FixChecksum
+	ValidatePE
