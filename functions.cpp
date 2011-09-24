@@ -54,20 +54,20 @@ IMAGE_NT_HEADERS * pNTH;
 	return 0;
 }
 
-DWORD SizeOfPEHeader(IMAGE_NT_HEADERS * pNTH)
+DWORD SizeOfPEHeader(const IMAGE_NT_HEADERS * pNTH)
 {
 	return (offsetof(IMAGE_NT_HEADERS, OptionalHeader) + pNTH->FileHeader.SizeOfOptionalHeader + (pNTH->FileHeader.NumberOfSections * sizeof(IMAGE_SECTION_HEADER)));
 }
 
-bool IsPE64(IMAGE_NT_HEADERS * pNTH)
+bool IsPE64(const IMAGE_NT_HEADERS * pNTH)
 {
 	return (pNTH->OptionalHeader.Magic == IMAGE_NT_OPTIONAL_HDR64_MAGIC);
 }
 
-DWORD RVAToOffset(DWORD dwRVA, void * pMap)
+DWORD RVAToOffset(DWORD dwRVA, const void * pMap)
 {
-IMAGE_NT_HEADERS *     pNTH;
-IMAGE_SECTION_HEADER * SectionTable;
+const IMAGE_NT_HEADERS *     pNTH;
+const IMAGE_SECTION_HEADER * SectionTable;
 DWORD                  VAddress, VSize, ROffset, RSize, UpperBound;
 unsigned int           i;
 
@@ -213,4 +213,19 @@ DWORD AlignDown(DWORD dwBadSize, DWORD dwAlignment)
 {
 	dwAlignment--;
 	return (dwBadSize & ~dwAlignment);
+}
+
+bool ValidFileAlignment(DWORD dwAlign)
+{
+// lower and upper limits (pecoff spec)
+const DWORD MIN_ALIGN = 0x200;
+const DWORD MAX_ALIGN = 0x10000;
+
+	if((dwAlign & (dwAlign-1)) != 0) // power of 2 ?
+		return false;
+
+	if(dwAlign < MIN_ALIGN || dwAlign > 0x10000)
+		return false;
+
+	return true;
 }

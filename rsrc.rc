@@ -43,11 +43,11 @@ BEGIN
     BEGIN
         BLOCK "000004b0"
         BEGIN
-            VALUE "CompanyName", "yoda/Killboy"
+            VALUE "CompanyName", "yoda/pezcode"
             VALUE "FileDescription", "PE image optimization and reconstruction"
             VALUE "FileVersion", "1.6"
             VALUE "InternalName", "Realign DLL"
-            VALUE "LegalCopyright", "Copyright © 2002-2009"
+            VALUE "LegalCopyright", "Copyright © 2002-2011"
             VALUE "OriginalFilename", "realign.dll"
             VALUE "ProductName", "Realign DLL"
             VALUE "ProductVersion", "1.6"
