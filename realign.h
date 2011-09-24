@@ -108,9 +108,9 @@ extern "C"
 {
 #endif
 
-void * __stdcall MapFile(char * szFilePath, DWORD * pdwFsize);
-bool   __stdcall UnmapFile(char * szFilePath, void * pMap, DWORD dwFsize);
-bool   __stdcall TruncateFile(char * szFilePath, DWORD dwNewFsize);
+void * __stdcall MapFile(const char * szFilePath, DWORD * pdwFsize);
+bool   __stdcall UnmapFile(const char * szFilePath, void * pMap, DWORD dwFsize);
+bool   __stdcall TruncateFile(const char * szFilePath, DWORD dwNewFsize);
 DWORD  __stdcall RealignPE(void * pMap, DWORD dwFsize, BYTE bRealignMode);
 DWORD  __stdcall RealignPEEx(void * pMap, DWORD dwFsize, BYTE bRealignMode, WORD wNewAlign, bool blAlignRawsizes, bool blStripEmptySections);
 DWORD  __stdcall ReBasePEImage(void * pMap, DWORD dwNewBase);
