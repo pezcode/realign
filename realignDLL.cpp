@@ -131,7 +131,7 @@ DWORD __stdcall RealignPEEx(void * pMap, DWORD dwFsize, BYTE bRealignMode, WORD 
 IMAGE_DOS_HEADER * pDosH;
 IMAGE_NT_HEADERS * pNTH;
 IMAGE_SECTION_HEADER * pSH;
-BYTE * pSections[MAX_SEC_NUM] = { 0 };
+BYTE * pSections[MAX_SEC_NUM];
 BYTE * bptrMapBase;
 DWORD dwSectionBase, dwHdrSize, dwNewSize;
 //WORD wNPEHStart;
@@ -309,7 +309,7 @@ BYTE * SecOffset, * pCH;
 	}
 
 	// clean up
-	for(int i = 0; i < _countof(pSections); i++)
+	for(int i = 0; i < pNTH->FileHeader.NumberOfSections; i++)
 	{
 		delete[] pSections[i];
 	}
