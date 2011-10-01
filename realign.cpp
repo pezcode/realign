@@ -5,14 +5,13 @@
    You are allowed to use this code if you mention my name. (yoda's that is)
 */
 
+#define NOMINMAX
+
 #include <windows.h>
-#include <cstdlib> // _countof
 #include <new>
+#include <limits>
 #include "realign.h"
 #include "functions.h"
-
-// constants
-const size_t MAX_SEC_NUM = 96; // max number of sections supported by the Windows loader
 
 // global variables
 HMODULE hDll;
@@ -88,7 +87,7 @@ bool RetVal = false;
 	hFile = CreateFile(szFilePath, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
 	if(hFile != INVALID_HANDLE_VALUE)
 	{
-		RetVal = WriteFile(hFile, pMap, dwFsize, &dwBytes, 0) ? true : false;
+		RetVal = WriteFile(hFile, pMap, dwFsize, &dwBytes, 0) == TRUE;
 		SetEndOfFile(hFile);
 		CloseHandle(hFile);
 		VirtualFree(pMap, 0, MEM_RELEASE);
@@ -128,6 +127,7 @@ DWORD __stdcall RealignPE(void * pMap, DWORD dwFsize, BYTE bRealignMode)
 
 DWORD __stdcall RealignPEEx(void * pMap, DWORD dwFsize, BYTE bRealignMode, WORD wNewAlign, bool blAlignRawSizes, bool blStripEmptySections)
 {
+const size_t MAX_SEC_NUM = 96; // max number of sections supported by the Windows loader
 IMAGE_DOS_HEADER * pDosH;
 IMAGE_NT_HEADERS * pNTH;
 IMAGE_SECTION_HEADER * pSH;
@@ -136,7 +136,7 @@ BYTE * bptrMapBase;
 DWORD dwSectionBase, dwHdrSize, dwNewSize;
 //WORD wNPEHStart;
 //WORD * pW;
-BYTE * SecOffset, * pCH;
+BYTE * pCH;
 
 	// TODO asserts
 
@@ -155,7 +155,7 @@ BYTE * SecOffset, * pCH;
 	if(pNTH->FileHeader.NumberOfSections > MAX_SEC_NUM)
 		return RA_TOOMANYSECTIONS;
 
-	bptrMapBase = (BYTE *)pMap;
+	bptrMapBase = static_cast<BYTE *>(pMap);
 
 	/* Realign the PE Header */
 
@@ -180,7 +180,7 @@ BYTE * SecOffset, * pCH;
 			break;
 		*/
 		case REALIGN_MODE_HARDCORE: // completely wipe the dos stub
-			memcpy(bptrMapBase+0xC, pNTH, dwHdrSize);
+			memmove(bptrMapBase+0xC, pNTH, dwHdrSize);
 			pDosH->e_lfanew = 0xC; // overwrites BaseOfData
 			break;
 		case REALIGN_MODE_NORMAL:
@@ -188,7 +188,7 @@ BYTE * SecOffset, * pCH;
 			if(pDosH->e_lfanew > sizeof(NiceStub))
 			{
 				*pDosH = NiceStub;
-				memcpy(bptrMapBase + sizeof(IMAGE_DOS_HEADER), pNTH, dwHdrSize);
+				memmove(bptrMapBase + sizeof(IMAGE_DOS_HEADER), pNTH, dwHdrSize);
 			}
 			break;
 		default:
@@ -199,7 +199,7 @@ BYTE * SecOffset, * pCH;
 	dwHdrSize += pDosH->e_lfanew;
 	dwSectionBase = AlignUp(dwHdrSize, wNewAlign);
 	// get new PE header offset
-	pNTH = (IMAGE_NT_HEADERS *)(bptrMapBase+pDosH->e_lfanew);
+	pNTH = reinterpret_cast<IMAGE_NT_HEADERS *>(bptrMapBase+pDosH->e_lfanew);
 	pNTH->OptionalHeader.SizeOfHeaders = dwSectionBase;
 
 	/* Realign all sections */
@@ -209,11 +209,11 @@ BYTE * SecOffset, * pCH;
 
 	pSH = IMAGE_FIRST_SECTION(pNTH);
 
-	for(int i = 0; i < pNTH->FileHeader.NumberOfSections; i++)
+	for(WORD i = 0; i < pNTH->FileHeader.NumberOfSections; i++)
 	{
 		if(pSH[i].PointerToRawData == 0)
 		{
-			pSH[i].SizeOfRawData = 0; // Don't copy them, no memory allocated!
+			pSH[i].SizeOfRawData = 0; // Don't copy section, no memory allocated!
 		}
 		else if(pSH[i].SizeOfRawData != 0)
 		{
@@ -225,16 +225,23 @@ BYTE * SecOffset, * pCH;
 			if(pSH[i].Misc.VirtualSize < pSH[i].SizeOfRawData)
 				pSH[i].SizeOfRawData = pSH[i].Misc.VirtualSize;
 
+			// Offset outside the file?
+			if(pSH[i].PointerToRawData > dwFsize)
+			{
+				pSH[i].SizeOfRawData = 0;
+			}
+
 			// If size exceeds filesize, get bytes till end of file
 			if((pSH[i].PointerToRawData + pSH[i].SizeOfRawData) > dwFsize)
 				pSH[i].SizeOfRawData = dwFsize - pSH[i].PointerToRawData;
 
 			// get size without trailing zeroes
-			SecOffset = bptrMapBase + pSH[i].PointerToRawData;
-			pCH = SecOffset + pSH[i].SizeOfRawData - 1;
-			while((pCH >= SecOffset) && *pCH == 0)
+			pCH = bptrMapBase + pSH[i].PointerToRawData + pSH[i].SizeOfRawData - 1;
+			while(pSH[i].SizeOfRawData != 0 && *pCH == 0)
+			{
+				pSH[i].SizeOfRawData--;
 				pCH--;
-			pSH[i].SizeOfRawData = (DWORD)(pCH - SecOffset + 1);
+			}
 
 			if(pSH[i].SizeOfRawData != 0)
 			{
@@ -265,7 +272,7 @@ BYTE * SecOffset, * pCH;
 		// set new RawOffset
 		pSH[i].PointerToRawData = dwSectionBase;
 
-		// don't copy empty sections (pSections[i] == NULL)
+		// don't copy empty sections
 		if(pSH[i].SizeOfRawData != 0)
 		{
 			// copy section to the new place
@@ -299,13 +306,15 @@ BYTE * SecOffset, * pCH;
 	// delete bound import directories (destroyed if present)
 	if(IsPE64(pNTH))
 	{
-		((IMAGE_NT_HEADERS64 *)pNTH)->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT].VirtualAddress = 0;
-		((IMAGE_NT_HEADERS64 *)pNTH)->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT].Size =           0;
+		IMAGE_NT_HEADERS64 * pNTH64 = reinterpret_cast<IMAGE_NT_HEADERS64 *>(pNTH);
+		pNTH64->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT].VirtualAddress = 0;
+		pNTH64->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT].Size = 0;
 	}
 	else
 	{
-		((IMAGE_NT_HEADERS32 *)pNTH)->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT].VirtualAddress = 0;
-		((IMAGE_NT_HEADERS32 *)pNTH)->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT].Size =           0;
+		IMAGE_NT_HEADERS32 * pNTH32 = reinterpret_cast<IMAGE_NT_HEADERS32 *>(pNTH);
+		pNTH32->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT].VirtualAddress = 0;
+		pNTH32->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT].Size = 0;
 	}
 
 	// clean up
@@ -319,14 +328,14 @@ BYTE * SecOffset, * pCH;
 
 DWORD __stdcall ReBasePEImage(void * pMap, DWORD dwNewBase)
 {
-	return ReBasePEImageEx(pMap, ~0, dwNewBase);
+	return ReBasePEImageEx(pMap, std::numeric_limits<DWORD>::max(), dwNewBase);
 }
 
 DWORD __stdcall ReBasePEImageEx(void * pMap, DWORD dwFsize, ULONGLONG ulNewBase)
 {
 IMAGE_NT_HEADERS * pNTH;
 IMAGE_RELOCATION * pR;
-DWORD dwRelDir, dwRva, Type;
+DWORD dwRelDir, dwRelOffs, dwOffsAddr, dwRva, Type;
 ULONGLONG ulOldBase, ulDelta;
 ULONGLONG * pAddr;
 WORD * pW;
@@ -343,14 +352,16 @@ int nItems;
 	if(ulOldBase == ulNewBase)
 		return RB_OK;
 
+	// get relocation dir ptr
 	dwRelDir = HDR3264(pNTH, OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].VirtualAddress);
 	if(!dwRelDir)
 		return RB_NORELOCATIONINFO;
 
-	// get relocation dir ptr
-	pR = (IMAGE_RELOCATION *)((ULONG_PTR)pMap + RVAToOffset(dwRelDir, pMap));
-	if((void *)pR == pMap)
+	dwRelOffs = RVAToOffset(dwRelDir, pMap);
+	if(!dwRelOffs || dwRelOffs > dwFsize)
 		return RB_INVALIDRVA;
+
+	pR = reinterpret_cast<IMAGE_RELOCATION *>(static_cast<BYTE *>(pMap) + dwRelOffs);
 
 	/* add delta to relocation items */
 
@@ -360,10 +371,8 @@ int nItems;
 	{
 		while(pR->VirtualAddress)
 		{
-			/*
 			if(!pR->SymbolTableIndex)
-				break; // no items in this block
-			*/
+				break; // this shouldn't happen o_O
 
 			// calculate number of items
 			nItems = (pR->SymbolTableIndex - sizeof(IMAGE_BASE_RELOCATION)) / sizeof(pR->Type);
@@ -375,9 +384,11 @@ int nItems;
 				dwRva = (pW[i] & 0xFFF) + pR->VirtualAddress; // get item RVA
 				Type  = pW[i] >> 12;                          // get relocation type
 
-				pAddr = (ULONGLONG *)((ULONG_PTR)pMap + RVAToOffset(dwRva, pMap));
-				if((void *)pAddr == pMap)
+				dwOffsAddr = RVAToOffset(dwRva, pMap);
+				if(!dwOffsAddr || dwOffsAddr > dwFsize)
 					return RB_INVALIDRVA;
+
+				pAddr = reinterpret_cast<ULONGLONG *>(static_cast<BYTE *>(pMap) + dwOffsAddr);
 
 				// add delta value
 				switch(Type)
@@ -390,7 +401,7 @@ int nItems;
 			}
 
 			// get next block header
-			pR = (IMAGE_RELOCATION *)((ULONG_PTR)pR + pR->SymbolTableIndex); 
+			pR = reinterpret_cast<IMAGE_RELOCATION *>(reinterpret_cast<BYTE *>(pR) + pR->SymbolTableIndex); 
 		}
 	}
 	__except(EXCEPTION_EXECUTE_HANDLER)
@@ -400,9 +411,9 @@ int nItems;
 
 	// write new base to header
 	if(IsPE64(pNTH))
-		((IMAGE_NT_HEADERS64 *)pNTH)->OptionalHeader.ImageBase = ulNewBase;
+		reinterpret_cast<IMAGE_NT_HEADERS64 *>(pNTH)->OptionalHeader.ImageBase = ulNewBase;
 	else
-		((IMAGE_NT_HEADERS32 *)pNTH)->OptionalHeader.ImageBase = (DWORD)(ulNewBase & 0xFFFFFFFF);
+		reinterpret_cast<IMAGE_NT_HEADERS32 *>(pNTH)->OptionalHeader.ImageBase = ulNewBase & 0xFFFFFFFF;
 
 	return RB_OK;
 }
@@ -466,7 +477,7 @@ unsigned int i;
 			if(!dwDataOffset || ((dwDataOffset+dwDataSize) > dwFsize))
 				return WD_INVALIDDATA;
 
-			memset((void *)((ULONG_PTR)pMap + dwDataOffset), 0, dwDataSize);
+			memset(static_cast<BYTE *>(pMap) + dwDataOffset, 0, dwDataSize);
 		}
 
 		// check whether the directory has an own section
@@ -485,21 +496,24 @@ unsigned int i;
 		//if(blZerofill || bOwnSec)
 		{
 			// kill data directory entry
-			if(IsPE64(pNTH)){
-				((IMAGE_NT_HEADERS64 *)pNTH)->OptionalHeader.DataDirectory[bData].VirtualAddress = 0;
-				((IMAGE_NT_HEADERS64 *)pNTH)->OptionalHeader.DataDirectory[bData].Size           = 0;
+			if(IsPE64(pNTH))
+			{
+				IMAGE_NT_HEADERS64 * pNTH64 = reinterpret_cast<IMAGE_NT_HEADERS64 *>(pNTH);
+				pNTH64->OptionalHeader.DataDirectory[bData].VirtualAddress = 0;
+				pNTH64->OptionalHeader.DataDirectory[bData].Size = 0;
 			}
-			else{
-				((IMAGE_NT_HEADERS32 *)pNTH)->OptionalHeader.DataDirectory[bData].VirtualAddress = 0;
-				((IMAGE_NT_HEADERS32 *)pNTH)->OptionalHeader.DataDirectory[bData].Size           = 0;
+			else
+			{
+				IMAGE_NT_HEADERS32 * pNTH32 = reinterpret_cast<IMAGE_NT_HEADERS32 *>(pNTH);
+				pNTH32->OptionalHeader.DataDirectory[bData].VirtualAddress = 0;
+				pNTH32->OptionalHeader.DataDirectory[bData].Size = 0;
 			}
 		}
 		//else if(!bOwnSec)
 		//	return WD_NOOWNSECTION;
 
-		if(bOwnSec)
-		// delete section
-		dwNewFsize = StripSection(pMap, dwFsize, i);
+		if(bOwnSec) // delete section
+			dwNewFsize = StripSection(pMap, dwFsize, i);
 	}
 	__except(EXCEPTION_EXECUTE_HANDLER)
 	{
@@ -554,14 +568,14 @@ unsigned int nWordCount;
 
 	nWordCount = (dwFsize+1)/sizeof(WORD);
 
-	pW = (WORD *)pMap;
+	pW = static_cast<WORD *>(pMap);
 	for(unsigned int i = 0; i < nWordCount; i++)
 	{
 		dwCalcSum += *pW++;
 		if(HIWORD(dwCalcSum) != 0)
 			dwCalcSum = LOWORD(dwCalcSum) + HIWORD(dwCalcSum);
 	}
-	dwCalcSum = (WORD)(LOWORD(dwCalcSum) + HIWORD(dwCalcSum));
+	dwCalcSum = LOWORD((LOWORD(dwCalcSum) + HIWORD(dwCalcSum)));
 
 	// add file length
 	dwCalcSum += dwFsize;
@@ -580,7 +594,7 @@ DWORD TempVal;
 	if(!GetNTHeader(pMap, dwFsize, NULL, &pNTH, &pSH, NULL))
 		return false;
 
-	pNTH->OptionalHeader.SizeOfHeaders = AlignUp((SizeOfPEHeader(pNTH) + ((IMAGE_DOS_HEADER *)pMap)->e_lfanew), pNTH->OptionalHeader.FileAlignment);
+	pNTH->OptionalHeader.SizeOfHeaders = AlignUp((SizeOfPEHeader(pNTH) + static_cast<IMAGE_DOS_HEADER *>(pMap)->e_lfanew), pNTH->OptionalHeader.FileAlignment);
 
 	// align rawoffsets and sizes
 	for(int i = 0; i < pNTH->FileHeader.NumberOfSections; i++)
